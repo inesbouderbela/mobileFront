@@ -18,6 +18,9 @@
         android:theme="@style/Theme.MyApplication"
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyBF8vgLzOHKqLyxAMOo44YaSwtZvl_1tlY"/>
         <activity
             android:name=".Maps"
             android:exported="false" />

@@ -78,33 +78,12 @@ public class DetailActivity extends AppCompatActivity {
         localisation.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Uri webUri = Uri.parse("https://www.google.com/maps/search/?api=1&query=Paris");
-                Intent webIntent = new Intent(Intent.ACTION_VIEW, webUri);
-                webIntent.setPackage("com.android.chrome"); // Forcer Chrome
-
-// Vérifier si Chrome peut ouvrir le lien
-                if (webIntent.resolveActivity(getPackageManager()) != null) {
-                    startActivity(webIntent);
-                } else {
-                    // Fallback : ouvrir avec n'importe quel navigateur
-                    Intent fallbackIntent = new Intent(Intent.ACTION_VIEW, webUri);
-                    if (fallbackIntent.resolveActivity(getPackageManager()) != null) {
-                        startActivity(fallbackIntent);
-                    } else {
-                        // Si aucun navigateur ne fonctionne, proposer d'installer Chrome
-                        Toast.makeText(DetailActivity.this, "Ouvrez Chrome manuellement", Toast.LENGTH_SHORT).show();
-                        Intent playStoreIntent = new Intent(Intent.ACTION_VIEW,
-                                Uri.parse("market://details?id=com.android.chrome"));
-                        startActivity(playStoreIntent);
-                    }
-                }
+                Intent intent = new Intent(DetailActivity.this, Maps.class); // lancer l'activité Maps
+                startActivity(intent);
             }
         });
 
-
     }
-
-
     private void initViews() {
         filmPic = findViewById(R.id.filmpic);
         titleTxt = findViewById(R.id.titleTxt);
