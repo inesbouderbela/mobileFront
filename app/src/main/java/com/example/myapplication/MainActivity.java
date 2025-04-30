@@ -1,6 +1,7 @@
 package com.example.myapplication;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -18,8 +19,10 @@ import androidx.viewpager2.widget.ViewPager2;
 
 import com.example.myapplication.Model.Spectacle_Detail;
 import com.example.myapplication.Model.TopSpectacle;
+import com.example.myapplication.Model.categorie;
 import com.example.myapplication.SliderAdapter; // Assuming SliderAdapter is in a separate package
 import com.example.myapplication.Model.Spectacle; // Assuming Spectacle class is in a 'models' package
+import com.ismaeldivita.chipnavigation.ChipNavigationBar;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -38,10 +41,14 @@ public class MainActivity extends AppCompatActivity {
     private ProgressBar progressBarTopMovie;
     private RecyclerView recyclerViewTopMovie;
     private RecyclerView RecycleViewUpcoming;
+    private RecyclerView CatgoryListView;
+
+
 
     private SliderAdapter sliderAdapter;
     private Handler sliderHandler = new Handler();
     private Runnable sliderRunnable;
+    ChipNavigationBar bottomNav;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,12 +60,55 @@ public class MainActivity extends AppCompatActivity {
         recyclerViewTopMovie=findViewById(R.id.recyclerViewTopMovie);
         RecycleViewUpcoming = findViewById(R.id.RecycleViewUpcoming);
         progressBarUpcoming=findViewById(R.id.progressBarUpcoming);
+        CatgoryListView=findViewById(R.id.CatgoryListView);
         fetchSpectacles();
         initTopMoving();
         initSpecacles();
+        initCategorie();
+        bottomNav = findViewById(R.id.bottom_nav);
+
+        bottomNav.setOnItemSelectedListener(new ChipNavigationBar.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(int id) {
+                if (id == R.id.explorer) {
+                    // action explorer
+                } else if (id == R.id.favorite) {
+                    // action favorite
+                } else if (id == R.id.cart) {
+                    // action cart
+                } else if (id == R.id.profile) {
+                    /*Intent intent = new Intent(MainActivity.this, profileactivity.class);
+                    startActivity(intent);*/
+                }
+            }
+        });
+
 
 
         sliderRunnable = () -> viewPager2.setCurrentItem(viewPager2.getCurrentItem() + 1);
+    }
+    private void initCategorie() {
+        List<categorie> categories = new ArrayList<>();
+        categories.add(new categorie("ALL", R.drawable.all));
+        categories.add(new categorie("Théâtre", R.drawable.theater));
+        categories.add(new categorie("Musique", R.drawable.music));
+        categories.add(new categorie("Danse", R.drawable.dancing));
+
+        CategorieSpectacleAdapter castAdapter = new CategorieSpectacleAdapter(categories, this);
+        CatgoryListView.setLayoutManager(new LinearLayoutManager(
+                this, LinearLayoutManager.HORIZONTAL, false));
+        CatgoryListView.setAdapter(castAdapter);
+
+
+        castAdapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
+            @Override
+            public void onChanged() {
+                categorie selected = castAdapter.getSelectedItem();
+                if (selected != null) {
+
+                }
+            }
+        });
     }
     private void initSpecacles() {
         Retrofit retrofit = new Retrofit.Builder()

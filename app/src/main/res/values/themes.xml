@@ -13,6 +13,7 @@
     <style name="circleImageView"  >
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">50%</item>
+        <item name="android:scaleType">fitCenter</item>
     </style>
 
 

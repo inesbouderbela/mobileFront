@@ -9,6 +9,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -49,7 +50,7 @@ public class DetailActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Permet d'étendre le layout jusqu'aux bords
+
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
         setContentView(R.layout.activity_detail);
 
@@ -68,7 +69,7 @@ public class DetailActivity extends AppCompatActivity {
         backBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // Créer un Intent pour revenir à l'activité principale (MainActivity)
+
                 Intent intent = new Intent(DetailActivity.this, MainActivity.class);
                 startActivity(intent);
                 finish();
@@ -82,6 +83,16 @@ public class DetailActivity extends AppCompatActivity {
                 startActivity(intent);
             }
         });
+
+        Button btnChooseSeats = findViewById(R.id.butTicketbtn);
+        btnChooseSeats.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(DetailActivity.this, SeatListActivity.class);
+                startActivity(intent);
+            }
+        });
+
 
     }
     private void initViews() {
@@ -155,7 +166,7 @@ public class DetailActivity extends AppCompatActivity {
                 .apply(requestOptions)
                 .into(filmPic);
 
-        // Ajout des acteurs
+
         if (dto.getActeurs() != null && !dto.getActeurs().isEmpty()) {
             CastListAdapter castAdapter = new CastListAdapter(dto.getActeurs(), this);
             castListView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
