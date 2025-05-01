@@ -1,6 +1,8 @@
 package com.example.myapplication.Model;
 
-public class Acteur {
+import java.io.Serializable;
+
+public class Acteur   implements Serializable {
 
     private Long id;
     private String nom;

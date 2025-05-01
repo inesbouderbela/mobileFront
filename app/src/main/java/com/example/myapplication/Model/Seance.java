@@ -1,11 +1,12 @@
 package com.example.myapplication.Model;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.util.List;
 
 import java.util.List;
 
-public class Seance {
+ public class Seance  implements Serializable {
     private Long idSpectacle;
     private String title; // <-- title au lieu de titre
     private String secondaryImage;
@@ -18,6 +19,7 @@ public class Seance {
     private String nomLieu;
     private String adresseLieu;
     private Double latitude;
+     private String coverImage;
     private Double longitude;
     private List<Acteur> acteurs;
 
@@ -30,11 +32,24 @@ public class Seance {
     public String getHeureDebut() { return heureDebut; }
     public String getHeureFin() { return heureFin; }
     public String getNomSalle() { return nomSalle; }
+     public String getCoverImage() {
+         return coverImage;
+     }
+
+     public void setCoverImage(String coverImage) {
+         this.coverImage = coverImage;
+     }
     public String getNomLieu() { return nomLieu; }
     public String getAdresseLieu() { return adresseLieu; }
     public Double getLatitude() { return latitude; }
     public Double getLongitude() { return longitude; }
     public List<Acteur> getActeurs() { return acteurs; }
+    public String getDebFin(){
+        return heureDebut +" - "+heureFin;
+    }
+    public int getCost(){
+        return 10;
+    }
 }
 
 

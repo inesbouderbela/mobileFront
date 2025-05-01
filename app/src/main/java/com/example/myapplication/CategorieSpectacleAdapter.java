@@ -23,10 +23,17 @@ public class CategorieSpectacleAdapter extends RecyclerView.Adapter<CategorieSpe
     private List<categorie> categorieList;
     private Context context;
     private int selectedPosition = 0;
+    private OnCategoryClickListener listener;
 
-    public CategorieSpectacleAdapter(List<categorie> categorieList, Context context) {
+
+    public interface OnCategoryClickListener {
+        void onCategoryClick(String categoryName);
+    }
+
+    public CategorieSpectacleAdapter(List<categorie> categorieList, Context context, OnCategoryClickListener listener) {
         this.categorieList = categorieList;
         this.context = context;
+        this.listener = listener;
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
@@ -69,7 +76,7 @@ public class CategorieSpectacleAdapter extends RecyclerView.Adapter<CategorieSpe
             /*textView.setTextColor(textColor);*/
             textView.setText(categorie.getNom());
 
-            // Toujours visible
+
             textView.setVisibility(View.VISIBLE);
         }
     }
@@ -93,7 +100,10 @@ public class CategorieSpectacleAdapter extends RecyclerView.Adapter<CategorieSpe
             notifyItemChanged(previousSelected);
             notifyItemChanged(selectedPosition);
 
-            // Vous pouvez ajouter des actions supplémentaires ici
+
+            if (listener != null) {
+                listener.onCategoryClick(categorieList.get(selectedPosition).getNom());
+            }
         });
     }
 

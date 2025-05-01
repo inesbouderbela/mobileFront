@@ -1,42 +1,75 @@
 package com.example.myapplication;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
+import android.text.TextWatcher;
 import android.util.Log;
+import android.view.KeyEvent;
+import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.ScrollView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.CompositePageTransformer;
 import androidx.viewpager2.widget.MarginPageTransformer;
 import androidx.viewpager2.widget.ViewPager2;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.resource.bitmap.CenterCrop;
+import com.bumptech.glide.load.resource.bitmap.RoundedCorners;
+import com.bumptech.glide.request.RequestOptions;
+import com.example.myapplication.Model.DateWithCount;
+import com.example.myapplication.Model.Seance;
 import com.example.myapplication.Model.Spectacle_Detail;
 import com.example.myapplication.Model.TopSpectacle;
 import com.example.myapplication.Model.categorie;
 import com.example.myapplication.SliderAdapter; // Assuming SliderAdapter is in a separate package
 import com.example.myapplication.Model.Spectacle; // Assuming Spectacle class is in a 'models' package
+import com.google.gson.GsonBuilder;
 import com.ismaeldivita.chipnavigation.ChipNavigationBar;
 
 import java.io.IOException;
+import java.io.Serializable;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity  implements CategorieSpectacleAdapter.OnCategoryClickListener {
 
     private ViewPager2 viewPager2;
     private ProgressBar progressBarSlider;
+    private boolean isInSearchMode = false;
+    private ConstraintLayout eventsContainer;
+    private List<Seance> seancesList ;
+
+
     private ProgressBar progressBarUpcoming;
     private ProgressBar progressBarTopMovie;
     private RecyclerView recyclerViewTopMovie;
@@ -44,8 +77,17 @@ public class MainActivity extends AppCompatActivity {
     private RecyclerView CatgoryListView;
 
 
+    private RecyclerView eventsRecyclerView; // RecyclerView vertical pour les événements
+    private ProgressBar progressBar;
+    private RecyclerView datesRecyclerView;
+    private DateAdapter dateAdapter;
+    private EventsAdapter eventsAdapter;
+
+    private List<DateWithCount> datesWithCount ;
+
 
     private SliderAdapter sliderAdapter;
+    EditText searchEditText;
     private Handler sliderHandler = new Handler();
     private Runnable sliderRunnable;
     ChipNavigationBar bottomNav;
@@ -57,15 +99,16 @@ public class MainActivity extends AppCompatActivity {
         viewPager2 = findViewById(R.id.viewPager2);
         progressBarSlider = findViewById(R.id.progressBarSlider);
         progressBarTopMovie = findViewById(R.id.progressBarTopMovie);
-        recyclerViewTopMovie=findViewById(R.id.recyclerViewTopMovie);
+        recyclerViewTopMovie = findViewById(R.id.recyclerViewTopMovie);
         RecycleViewUpcoming = findViewById(R.id.RecycleViewUpcoming);
-        progressBarUpcoming=findViewById(R.id.progressBarUpcoming);
-        CatgoryListView=findViewById(R.id.CatgoryListView);
+        progressBarUpcoming = findViewById(R.id.progressBarUpcoming);
+        CatgoryListView = findViewById(R.id.CatgoryListView);
         fetchSpectacles();
-        initTopMoving();
-        initSpecacles();
+        initTopMoving("ALL");
+        initSpecacles("ALL");
         initCategorie();
         bottomNav = findViewById(R.id.bottom_nav);
+        Log.d("MAIN_DEBUG bonjour", "Données reçues pour le slider: ");
 
         bottomNav.setOnItemSelectedListener(new ChipNavigationBar.OnItemSelectedListener() {
             @Override
@@ -83,34 +126,62 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        ScrollView normalView = findViewById(R.id.scrollView2);
+        LinearLayout searchView = findViewById(R.id.searchView);
+        RecyclerView searchResultsRecycler = findViewById(R.id.searchResultsRecycler);
+        LinearLayout notFoundView = findViewById(R.id.notFoundView);
+         searchEditText = findViewById(R.id.searchEditText);
+        Button backButton = findViewById(R.id.backButton);
+        ImageView searchIcon = findViewById(R.id.searchIcon);// ID de l'ImageView ajoutée dans le XML
+        searchIcon.setOnClickListener(v -> {
+            String query = searchEditText.getText().toString().trim();
+            performSearch(query, searchResultsRecycler, notFoundView);
+        });
 
+        setupSearchFunctionality(searchEditText, searchIcon, normalView, searchView,
+                searchResultsRecycler, notFoundView, backButton);
 
         sliderRunnable = () -> viewPager2.setCurrentItem(viewPager2.getCurrentItem() + 1);
-    }
-    private void initCategorie() {
-        List<categorie> categories = new ArrayList<>();
-        categories.add(new categorie("ALL", R.drawable.all));
-        categories.add(new categorie("Théâtre", R.drawable.theater));
-        categories.add(new categorie("Musique", R.drawable.music));
-        categories.add(new categorie("Danse", R.drawable.dancing));
 
-        CategorieSpectacleAdapter castAdapter = new CategorieSpectacleAdapter(categories, this);
-        CatgoryListView.setLayoutManager(new LinearLayoutManager(
-                this, LinearLayoutManager.HORIZONTAL, false));
-        CatgoryListView.setAdapter(castAdapter);
+        datesWithCount = new ArrayList<>();
+        seancesList = new ArrayList<>();
+        eventsContainer = findViewById(R.id.eventsContainer);
+        eventsContainer.setVisibility(View.GONE);
 
 
-        castAdapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
-            @Override
-            public void onChanged() {
-                categorie selected = castAdapter.getSelectedItem();
-                if (selected != null) {
 
-                }
+        datesRecyclerView = findViewById(R.id.DateListView);
+        progressBar = findViewById(R.id.progressBarDate);
+        datesRecyclerView.setLayoutManager(
+                new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+
+        dateAdapter = new DateAdapter(datesWithCount, (date, position, isSelected) -> {
+            if (isSelected) {
+                loadEventsForDate(date.getDate());
+                eventsContainer.setVisibility(View.VISIBLE);
+            } else {
+                eventsContainer.setVisibility(View.GONE);
             }
         });
+        datesRecyclerView.setAdapter(dateAdapter);
+
+
+        RecyclerView eventsRecyclerView = findViewById(R.id.RecycleViewDate);
+        eventsRecyclerView.setLayoutManager(
+                new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+
+        eventsAdapter = new EventsAdapter(seancesList, this, seance -> {
+
+        });
+        eventsRecyclerView.setAdapter(eventsAdapter);
+
+
+        loadDatesWithCount();
     }
-    private void initSpecacles() {
+
+    private void loadDatesWithCount() {
+        progressBar.setVisibility(View.VISIBLE);
+
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(Constants.BASE_URL)
                 .addConverterFactory(GsonConverterFactory.create())
@@ -118,7 +189,220 @@ public class MainActivity extends AppCompatActivity {
 
         ApiService apiService = retrofit.create(ApiService.class);
 
-        apiService.getAllSpectacles().enqueue(new Callback<List<TopSpectacle>>() {
+        Call<List<DateWithCount>> call = apiService.getDatesWithEventCount();
+
+        call.enqueue(new Callback<List<DateWithCount>>() {
+            @Override
+            public void onResponse(Call<List<DateWithCount>> call, Response<List<DateWithCount>> response) {
+                progressBar.setVisibility(View.GONE);
+                if (response.isSuccessful() && response.body() != null) {
+                    datesWithCount = response.body();
+                    dateAdapter.updateData(datesWithCount);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<DateWithCount>> call, Throwable t) {
+                progressBar.setVisibility(View.GONE);
+                Toast.makeText(MainActivity.this, "Failed to load dates", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void loadEventsForDate(String date) {
+        progressBar.setVisibility(View.VISIBLE);
+
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(Constants.BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
+        ApiService apiService = retrofit.create(ApiService.class);
+
+        Call<List<Seance>> call = apiService.getSeancesByDate(date);
+
+        call.enqueue(new Callback<List<Seance>>() {
+            @Override
+            public void onResponse(Call<List<Seance>> call, Response<List<Seance>> response) {
+                progressBar.setVisibility(View.GONE);
+                if (response.isSuccessful() && response.body() != null) {
+                    Log.d("SEANCES", "Received " + response.body().size() + " seances");
+                    seancesList.clear();
+                    seancesList.addAll(response.body());
+                    eventsAdapter.notifyDataSetChanged();
+                } else {
+                    Log.e("SEANCES", "Response is empty or not successful");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<Seance>> call, Throwable t) {
+                progressBar.setVisibility(View.GONE);
+                Toast.makeText(MainActivity.this, "Failed to load events", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+
+
+    private void setupSearchFunctionality(EditText searchEditText, ImageView searchIcon,
+                                          ScrollView normalView, LinearLayout searchView,
+                                          RecyclerView searchResultsRecycler, LinearLayout notFoundView,
+                                          Button backButton) {
+
+        // Gestion du clic sur l'icône de recherche
+        searchIcon.setOnClickListener(v -> {
+            String query = searchEditText.getText().toString().trim();
+            if (!query.isEmpty()) {
+                enterSearchMode(normalView, searchView);
+                performSearch(query, searchResultsRecycler, notFoundView);
+            }
+        });
+
+        // Gestion du focus
+        searchEditText.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus && !isInSearchMode) {
+                enterSearchMode(normalView, searchView);
+            }
+        });
+
+        // Gestion de la recherche avec le clavier
+        searchEditText.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                String query = searchEditText.getText().toString().trim();
+                if (!query.isEmpty()) {
+                    performSearch(query, searchResultsRecycler, notFoundView);
+                }
+                return true;
+            }
+            return false;
+        });
+
+        // Bouton retour
+        backButton.setOnClickListener(v -> exitSearchMode(normalView, searchView, searchEditText));
+    }
+
+    private void enterSearchMode(ScrollView normalView, LinearLayout searchView) {
+        isInSearchMode = true;
+        normalView.setVisibility(View.GONE);
+        searchView.setVisibility(View.VISIBLE);
+
+        // Masquer le clavier si nécessaire
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(searchEditText.getWindowToken(), 0);
+    }
+
+    private void exitSearchMode(ScrollView normalView, LinearLayout searchView, EditText searchEditText) {
+        isInSearchMode = false;
+        normalView.setVisibility(View.VISIBLE);
+        searchView.setVisibility(View.GONE);
+        searchEditText.clearFocus();
+    }
+
+    private void performSearch(String query, RecyclerView searchResultsRecycler, LinearLayout notFoundView) {
+        // Masquer le clavier
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(searchEditText.getWindowToken(), 0);
+
+        searchSeancesBySpectacleName(query, searchResultsRecycler, notFoundView);
+    }
+
+    private void searchSeancesBySpectacleName(String spectacleName, RecyclerView recyclerView, LinearLayout notFoundView) {
+
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(Constants.BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
+        ApiService apiService = retrofit.create(ApiService.class);
+
+        Call<List<Seance>> call = apiService.searchSeancesByTitle(spectacleName);
+
+        call.enqueue(new Callback<List<Seance>>() {
+            @Override
+            public void onResponse(Call<List<Seance>> call, Response<List<Seance>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<Seance> seances = response.body();
+
+                    if (seances != null && !seances.isEmpty()) {
+
+                        notFoundView.setVisibility(View.GONE);
+
+
+                        ArrayList<Seance> serializableList = new ArrayList<>(seances);
+
+                        Intent intent = new Intent(MainActivity.this, Seances.class);
+                        intent.putExtra("spectacle_name", spectacleName);
+                        intent.putExtra("seances_list", serializableList); // Pas besoin de cast
+                        startActivity(intent);
+                    } else {
+                        // Aucun résultat trouvé
+                        recyclerView.setVisibility(View.GONE);
+                        notFoundView.setVisibility(View.VISIBLE);
+                    }
+                } else {
+                    // Gérer l'erreur de réponse
+                    recyclerView.setVisibility(View.GONE);
+                    notFoundView.setVisibility(View.VISIBLE);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<Seance>> call, Throwable t) {
+
+                recyclerView.setVisibility(View.GONE);
+                notFoundView.setVisibility(View.VISIBLE);
+                Toast.makeText(MainActivity.this, "Erreur de connexion", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+
+
+    }
+
+
+
+    private void initCategorie() {
+        List<categorie> categories = new ArrayList<>();
+        categories.add(new categorie("ALL", R.drawable.all));
+        categories.add(new categorie("THEATRE", R.drawable.theater));
+        categories.add(new categorie("MUSIQUE", R.drawable.music));
+        categories.add(new categorie("DANSE", R.drawable.dancing));
+
+        CategorieSpectacleAdapter castAdapter = new CategorieSpectacleAdapter(
+                categories, this, this);
+        CatgoryListView.setLayoutManager(new LinearLayoutManager(
+                this, LinearLayoutManager.HORIZONTAL, false));
+        CatgoryListView.setAdapter(castAdapter);
+
+
+    }
+
+    @Override
+    public void onCategoryClick(String categoryName) {
+
+        initSpecacles(categoryName);
+        initTopMoving(categoryName);
+
+    }
+
+    private void initSpecacles(String category) {
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(Constants.BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
+        ApiService apiService = retrofit.create(ApiService.class);
+
+        Call<List<TopSpectacle>> call;
+        if (category.equals("ALL")) {
+            call = apiService.getAllSpectacles();
+        } else {
+
+            call = apiService.getSpectaclesByCategory(category);
+        }
+
+        call.enqueue(new Callback<List<TopSpectacle>>() {
             @Override
             public void onResponse(@NonNull Call<List<TopSpectacle>> call, @NonNull Response<List<TopSpectacle>> response) {
                 progressBarUpcoming.setVisibility(View.GONE);
@@ -163,15 +447,23 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
-    private void initTopMoving() {
+
+    private void initTopMoving(String category) {
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(Constants.BASE_URL)
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
 
         ApiService apiService = retrofit.create(ApiService.class);
+        Call<List<TopSpectacle>> call;
+        if (category.equals("ALL")) {
+            call = apiService.getTopSpectacles();
+        } else {
 
-        apiService.getTopSpectacles().enqueue(new Callback<List<TopSpectacle>>() {
+            call = apiService.getTopSpectaclesByCategory(category);
+        }
+
+        call.enqueue(new Callback<List<TopSpectacle>>() {
             @Override
             public void onResponse(@NonNull Call<List<TopSpectacle>> call, @NonNull Response<List<TopSpectacle>> response) {
                 progressBarTopMovie.setVisibility(View.GONE);
@@ -210,7 +502,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onFailure(@NonNull Call<List<TopSpectacle>> call, @NonNull Throwable t) {
                 progressBarTopMovie.setVisibility(View.GONE);
-                Log.e("MainActivity", "API call failed", t);
+
                 Toast.makeText(MainActivity.this,
                         "Erreur réseau: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
@@ -232,6 +524,7 @@ public class MainActivity extends AppCompatActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     List<Spectacle> spectacles = response.body();
 
+
                     setupSlider(spectacles);
                     progressBarSlider.setVisibility(View.GONE);
                 } else {
@@ -249,6 +542,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupSlider(List<Spectacle> spectacles) {
+        Log.d("MAIN_DEBUG", "Données reçues pour le slider: " + spectacles.size());
         sliderAdapter = new SliderAdapter(this, spectacles, viewPager2);
         viewPager2.setAdapter(sliderAdapter);
         viewPager2.setOffscreenPageLimit(3);
